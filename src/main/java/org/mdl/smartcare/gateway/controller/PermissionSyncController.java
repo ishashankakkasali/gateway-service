@@ -6,12 +6,23 @@ import org.mdl.smartcare.gateway.service.PermissionSyncService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+/**
+ * Admin endpoints that sync permissions to Keycloak. They create and delete realm roles.
+ *
+ * <ul>
+ *   <li>Off by default. Set {@code permission-sync.enabled=true} to turn them on.
+ *   <li>Every call needs a Bearer token with the role in {@code permission-sync.required-role}. See
+ *       {@link org.mdl.smartcare.gateway.security.PermissionSyncAuthFilter}.
+ * </ul>
+ */
 @RestController
+@ConditionalOnProperty(prefix = "permission-sync", name = "enabled", havingValue = "true")
 @RequestMapping("/api/permissions")
 public class PermissionSyncController {
 

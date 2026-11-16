@@ -22,7 +22,8 @@ repositories {
 }
 
 ext {
-	set('springCloudVersion', "2025.0.0")
+	// 2025.0.0 brings Spring Cloud Gateway 4.3.0, which has CVE-2025-41243. Fixed from 4.3.1.
+	set('springCloudVersion', "2025.0.3")
 }
 
 dependencies {

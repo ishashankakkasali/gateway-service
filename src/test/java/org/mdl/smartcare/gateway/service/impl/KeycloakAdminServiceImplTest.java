@@ -38,6 +38,20 @@ class KeycloakAdminServiceImplTest {
   }
 
   @Test
+  void usesServiceAccount_whenAClientSecretIsSet() {
+    when(keycloakConfig.getClientSecret()).thenReturn("a-secret");
+
+    assertTrue(keycloakAdminService.usesServiceAccount());
+  }
+
+  @Test
+  void usesUsernameAndPassword_whenNoClientSecretIsSet() {
+    when(keycloakConfig.getClientSecret()).thenReturn("  ");
+
+    assertFalse(keycloakAdminService.usesServiceAccount());
+  }
+
+  @Test
   void testCreateOrUpdateRealmRole_WhenRoleExists_ShouldUpdateDescription() {
     // Arrange
     String roleName = "USER_READ";

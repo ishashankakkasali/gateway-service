@@ -12,6 +12,7 @@ import java.util.Set;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -66,15 +67,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
       ResteasyClient resteasyClient = clientBuilder.build();
 
       // Build Keycloak client
-      Keycloak keycloak =
-          KeycloakBuilder.builder()
-              .serverUrl(keycloakConfig.getServerUrl())
-              .realm(keycloakConfig.getRealm())
-              .clientId(keycloakConfig.getClientId())
-              .username(keycloakConfig.getUsername())
-              .password(keycloakConfig.getPassword())
-              .resteasyClient(resteasyClient)
-              .build();
+      Keycloak keycloak = keycloakBuilder().resteasyClient(resteasyClient).build();
 
       logger.info(GatewayConstants.LogMessages.KEYCLOAK_CLIENT_CREATED);
       return keycloak;
@@ -158,6 +151,42 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
       logger.error("Failed to sync roles to Keycloak. Error: {}", e.getMessage(), e);
       throw new RuntimeException("Keycloak sync failed: " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Choose how the gateway logs in to Keycloak.
+   *
+   * <ul>
+   *   <li>A client secret is set: log in as the service account of that client (client credentials).
+   *       This is the preferred way. The account lives in the target realm and has only the rights it
+   *       was given there.
+   *   <li>No client secret: log in as a Keycloak user with username and password. This is the old
+   *       way. It is usually the admin of the master realm, who can change every realm.
+   * </ul>
+   */
+  KeycloakBuilder keycloakBuilder() {
+    KeycloakBuilder keycloakBuilder =
+        KeycloakBuilder.builder()
+            .serverUrl(keycloakConfig.getServerUrl())
+            .realm(keycloakConfig.getRealm())
+            .clientId(keycloakConfig.getClientId());
+
+    if (usesServiceAccount()) {
+      return keycloakBuilder
+          .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
+          .clientSecret(keycloakConfig.getClientSecret());
+    }
+    logger.warn(
+        "Keycloak login uses a username and password. Set keycloak.admin.client-secret to use a"
+            + " service account of the target realm instead.");
+    return keycloakBuilder
+        .grantType(OAuth2Constants.PASSWORD)
+        .username(keycloakConfig.getUsername())
+        .password(keycloakConfig.getPassword());
+  }
+
+  boolean usesServiceAccount() {
+    return keycloakConfig.getClientSecret() != null && !keycloakConfig.getClientSecret().isBlank();
   }
 
   /**

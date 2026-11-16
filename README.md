@@ -30,7 +30,6 @@ A Spring Boot Gateway service built with Spring Cloud Gateway for routing and AP
 The application will start on port 8081. You can access:
 - Gateway: http://localhost:8081
 - Health check: http://localhost:8081/actuator/health
-- Gateway info: http://localhost:8081/actuator/gateway
 
 ## Docker Deployment
 
@@ -131,4 +130,31 @@ Protected routes (those with the `JwtValidationFilter`) accept two kinds of cred
 The application includes health checks accessible at:
 - http://localhost:8081/actuator/health
 - http://localhost:8081/actuator/info
-- http://localhost:8081/actuator/gateway
+
+The `gateway` actuator endpoint is not exposed. It can read and change the routes without a login
+(CVE-2025-41243 in Spring Cloud Gateway 4.3.0, fixed from 4.3.1). Do not add `gateway` to
+`management.endpoints.web.exposure.include`.
+
+The actuator has no login of its own. Keep `/actuator` reachable only from inside the cluster. Do not
+route it at the ingress.
+
+## Permission Sync (admin endpoint)
+
+`POST /api/permissions/sync-to-keycloak` copies the role names in `api_permissions` to Keycloak as
+realm roles. It also **deletes** the realm roles that are not in `api_permissions`.
+
+- It is **off by default**. Set `PERMISSION_SYNC_ENABLED=true` to turn it on.
+- Every call under `/api/permissions` needs a Bearer token.
+  - No token, or a token that is not valid: 401.
+  - A valid token without the role in `PERMISSION_SYNC_REQUIRED_ROLE` (default `permission-sync`): 403.
+- Do not route `/api/permissions` at the ingress. It is for calls from inside the cluster.
+
+How the gateway logs in to Keycloak for the sync:
+
+- **Preferred: a service account of the target realm.**
+  1. In the target realm, create a confidential client with "Service accounts" on.
+  2. Give its service account only the `manage-realm` role of the `realm-management` client.
+  3. Set `KEYCLOAK_REALM` to the target realm, `KEYCLOAK_ADMIN_CLIENT_ID` to that client and
+     `KEYCLOAK_ADMIN_CLIENT_SECRET` to its secret. Leave the username and password empty.
+- **Old way: a Keycloak admin user** (`KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD`). Used only
+  when no client secret is set. Avoid it. The admin of the master realm can change every realm.

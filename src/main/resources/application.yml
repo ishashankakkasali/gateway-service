@@ -41,7 +41,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: gateway,health,info
+        # Do not add "gateway" here. That endpoint can read and change the routes without a login.
+        include: health,info
 
 logging:
   level:
@@ -59,9 +60,19 @@ keycloak:
     realm: ${KEYCLOAK_REALM:master}
     target-realm: ${KEYCLOAK_TARGET_REALM:smartcare}
     client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
-    # client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
-    username: ${KEYCLOAK_ADMIN_USERNAME:admin}
-    password: ${KEYCLOAK_ADMIN_PASSWORD:admin123}
+    # Preferred: a service account in the target realm.
+    # Set realm = target realm, client-id = that client, and client-secret. Leave username and password empty.
+    # The service account needs only the "manage-realm" role of the "realm-management" client.
+    client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    # Old way: a Keycloak admin user. Used only when client-secret is empty.
+    username: ${KEYCLOAK_ADMIN_USERNAME:}
+    password: ${KEYCLOAK_ADMIN_PASSWORD:}
+
+# Permission sync (POST /api/permissions/sync-to-keycloak) creates and deletes Keycloak realm roles.
+# It is off by default. When it is on, the caller must send a Bearer token that has required-role.
+permission-sync:
+  enabled: ${PERMISSION_SYNC_ENABLED:false}
+  required-role: ${PERMISSION_SYNC_REQUIRED_ROLE:permission-sync}
 
 authorization:
   enabled: ${AUTHORIZATION_ENABLED:true}
